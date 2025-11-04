@@ -21,20 +21,24 @@ pipeline {
             }
         }
 
-        stage('Build with Maven (Java 21)') {
-            agent { label 'docker-jdk21' }
-            steps {
-                dir('java-api') {
-                    sh "mvn -version"
-                    sh "mvn clean package -DskipTests"
-                }
-            }
-            post {
-                success {
-                    archiveArtifacts artifacts: 'java-api/target/*.jar', fingerprint: true
-                }
-            }
+stage('Build with Maven (Java 21)') {
+    agent { label 'docker-jdk21' }
+    steps {
+        dir('java-api') {
+            sh """
+                docker run --rm \
+                -v \$PWD:/app -w /app \
+                maven:3.9.6-eclipse-temurin-21 \
+                mvn clean package -DskipTests
+            """
         }
+    }
+    post {
+        success {
+            archiveArtifacts artifacts: 'java-api/target/*.jar', fingerprint: true
+        }
+    }
+}
 
         stage('Build Docker Image') {
             agent { label 'master' }
