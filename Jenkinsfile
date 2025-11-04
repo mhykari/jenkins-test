@@ -1,5 +1,5 @@
 pipeline {
-    agent none   // We will define agent per stage
+    agent { label 'docker-jdk21' }
 
     environment {
         IMAGE_NAME = "java-api"
@@ -7,52 +7,33 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
-            agent { label 'docker-jdk21' }
             steps {
                 checkout scm
-                script {
-                    // Move into java-api folder
-                    dir('java-api') {
-                        sh "ls -l"
-                    }
+                dir('java-api') {
+                    sh "ls -l"
                 }
             }
         }
 
-stage('Build with Maven (Java 21)') {
-    agent { label 'docker-jdk21' }
-    steps {
-        dir('java-api') {
-            sh """
-                docker run --rm \
-                -v \$PWD:/app -w /app \
-                maven:3.9.6-eclipse-temurin-21 \
-                mvn clean package -DskipTests
-            """
+        stage('Build with Maven Wrapper (Java 21)') {
+            steps {
+                dir('java-api') {
+                    sh "chmod +x mvnw"
+                    sh "./mvnw clean package -DskipTests"
+                }
+            }
         }
-    }
-    post {
-        success {
-            archiveArtifacts artifacts: 'java-api/target/*.jar', fingerprint: true
-        }
-    }
-}
 
         stage('Build Docker Image') {
-            agent { label 'master' }
             steps {
-                // Copy artifact from workspace to docker build context
-                sh """
-                cp java-api/target/*.jar .
-                docker build -t ${IMAGE_NAME} -f java-api/Dockerfile .
-                """
+                dir('java-api') {
+                    sh "docker build -t ${IMAGE_NAME} ."
+                }
             }
         }
 
         stage('Stop Old Container & Run New') {
-            agent { label 'master' }
             steps {
                 sh """
                 if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
