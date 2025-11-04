@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'docker-jdk21' }
+    agent { label 'docker-maven-agent' }
 
     environment {
         IMAGE_NAME = "java-api"
