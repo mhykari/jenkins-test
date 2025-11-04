@@ -43,3 +43,22 @@ pipeline {
                 sh """
                 cp java-api/target/*.jar .
                 docker build -t ${IMAGE_NAME} -f java-api/Dockerfile .
+                """
+            }
+        }
+
+        stage('Stop Old Container & Run New') {
+            agent { label 'master' }
+            steps {
+                sh """
+                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                fi
+
+                docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}
+                """
+            }
+        }
+    }
+}
