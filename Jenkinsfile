@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'docker-maven-agent' }
+    agent none
 
     environment {
         IMAGE_NAME = "java-api"
@@ -8,18 +8,21 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
+            agent { label 'docker-maven-agent' }
             steps {
                 checkout scm
-                sh "ls -l java-api"
+                dir('java-api') {
+                    sh "ls -l"
+                }
             }
         }
 
         stage('Build with Maven (Java 21)') {
+            agent { label 'docker-maven-agent' }
             steps {
                 dir('java-api') {
                     sh """
                         docker run --rm \
-                        -v /var/run/docker.sock:/var/run/docker.sock \
                         -v \$PWD:/app -w /app \
                         -v \$HOME/.m2:/root/.m2 \
                         maven:3.9.6-eclipse-temurin-21 \
@@ -35,25 +38,8 @@ pipeline {
         }
 
         stage('Build Docker Image') {
+            agent { label 'master' }
             steps {
                 sh """
                 cp java-api/target/*.jar .
                 docker build -t ${IMAGE_NAME} -f java-api/Dockerfile .
-                """
-            }
-        }
-
-        stage('Stop Old Container & Run New') {
-            steps {
-                sh """
-                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-                fi
-
-                docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}
-                """
-            }
-        }
-    }
-}
