@@ -7,29 +7,39 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 checkout scm
-                dir('java-api') {
-                    sh "ls -l"
-                }
+                sh "ls -l java-api"
             }
         }
 
-        stage('Build with Maven Wrapper (Java 21)') {
+        stage('Build with Maven (Java 21)') {
             steps {
                 dir('java-api') {
-                    sh "chmod +x mvnw"
-                    sh "./mvnw clean package -DskipTests"
+                    sh """
+                        docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        -v \$PWD:/app -w /app \
+                        -v \$HOME/.m2:/root/.m2 \
+                        maven:3.9.6-eclipse-temurin-21 \
+                        mvn clean package -DskipTests
+                    """
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'java-api/target/*.jar', fingerprint: true
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('java-api') {
-                    sh "docker build -t ${IMAGE_NAME} ."
-                }
+                sh """
+                cp java-api/target/*.jar .
+                docker build -t ${IMAGE_NAME} -f java-api/Dockerfile .
+                """
             }
         }
 
