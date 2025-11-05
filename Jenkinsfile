@@ -4,7 +4,7 @@ pipeline {
     environment {
         REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
         PROJECT_DIR = 'java-api'
-        IMAGE_NAME = 'java-api'
+        IMAGE_NAME = 'jaaava-api'
     }
 
     stages {
@@ -64,12 +64,12 @@ pipeline {
         failure {
             echo 'Pipeline failed. Check logs for details.'
         }
-        always {
-            script {
-                node {
-                    cleanWs()
-                }
-            }
-        }
-    }
-}
+#        always {
+#            script {
+#                node {
+#                    cleanWs()
+#                }
+#            }
+#        }
+#    }
+#}
