@@ -32,8 +32,8 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image (Controller)') {
-            agent { label 'master' }
+        stage('Build Docker Image') {
+            agent any
             steps {
                 dir("${PROJECT_DIR}") {
                     echo "Building Docker image on controller host..."
@@ -43,8 +43,8 @@ pipeline {
             }
         }
 
-        stage('Deploy with Docker Compose (Controller)') {
-            agent { label 'master' }
+        stage('Deploy with Docker Compose') {
+            agent any
             steps {
                 dir("${PROJECT_DIR}") {
                     echo "Deploying application using Docker Compose..."
