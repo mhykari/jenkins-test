@@ -1,63 +1,45 @@
 pipeline {
-    agent none
+    agent any
 
     environment {
-        IMAGE_NAME = "java-api"
+        IMAGE_NAME = "jaava-api"
         CONTAINER_NAME = "java-api-container"
     }
 
     stages {
         stage('Checkout Code') {
-            agent { label 'docker-maven-agent' }
             steps {
-                checkout scm
-                dir('java-api') {
-                    sh "ls -l"
-                }
+                git branch: 'main', url: 'https://github.com/mhykari/jenkins-test/'
             }
         }
 
-        stage('Build with Maven (Java 21)') {
-            agent { label 'docker-maven-agent' }
+        stage('Build with Maven') {
             steps {
-                dir('java-api') {
-                    sh """
-                        docker run --rm \
-                        -v \$PWD:/app -w /app \
-                        -v \$HOME/.m2:/root/.m2 \
-                        maven:3.9.6-eclipse-temurin-21 \
-                        mvn clean package -DskipTests
-                    """
-                }
-            }
-            post {
-                success {
-                    archiveArtifacts artifacts: 'java-api/target/*.jar', fingerprint: true
-                }
+                sh "mvn clean package -DskipTests"
             }
         }
 
         stage('Build Docker Image') {
-            agent { label 'master' }
+            steps {
+                sh "docker build -t ${IMAGE_NAME} ."
+            }
+        }
+
+        stage('Stop Previous Container') {
             steps {
                 sh """
-                cp java-api/target/*.jar .
-                docker build -t ${IMAGE_NAME} -f java-api/Dockerfile .
+                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
+                    echo "Stopping old container..."
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                fi
                 """
             }
         }
 
-        stage('Stop Old Container & Run New') {
-            agent { label 'master' }
+        stage('Run New Container') {
             steps {
-                sh """
-                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-                fi
-
-                docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}
-                """
+                sh "docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}"
             }
         }
     }
