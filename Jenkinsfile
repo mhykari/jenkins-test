@@ -5,6 +5,7 @@ pipeline {
         REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
         PROJECT_DIR = 'java-api'
         IMAGE_NAME = 'jaaava-api'
+        CONTAINER_NAME = 'java-api-container'
     }
 
     stages {
@@ -19,7 +20,7 @@ pipeline {
         stage('Build with Maven') {
             agent {
                 docker {
-                    image 'maven:3.9.6-eclipse-temurin-21'
+                    image 'maven:3.9.9-eclipse-temurin-21'
                     args '-v /root/.m2:/root/.m2'
                 }
             }
@@ -36,9 +37,12 @@ pipeline {
             agent any
             steps {
                 dir("${PROJECT_DIR}") {
-                    echo "Building Docker image on controller host..."
+                    echo "Building Docker image..."
                     unstash 'jarFile'
-                    sh "docker build -t ${IMAGE_NAME}:latest ."
+                    sh '''
+                        export DOCKER_BUILDKIT=1
+                        docker build -t java-api:latest .
+                    '''
                 }
             }
         }
@@ -47,11 +51,26 @@ pipeline {
             agent any
             steps {
                 dir("${PROJECT_DIR}") {
-                    echo "Deploying application using Docker Compose..."
-                    sh """
-                        docker compose down || true
-                        docker compose up -d --build
-                    """
+                    echo "Creating docker-compose.yml dynamically..."
+
+                    // create docker-compose.yml file dynamically
+                    writeFile file: 'docker-compose.yml', text: '''
+version: "3.8"
+
+services:
+  java-api:
+    image: java-api:latest
+    container_name: java-api-container
+    ports:
+      - "8085:8080"
+    restart: unless-stopped
+'''
+
+                    echo "Starting deployment with Docker Compose..."
+                    sh '''
+                        docker-compose down || true
+                        docker-compose up -d --build
+                    '''
                 }
             }
         }
@@ -64,12 +83,12 @@ pipeline {
         failure {
             echo 'Pipeline failed. Check logs for details.'
         }
-//        always {
-//            script {
-//                node {
-//                    cleanWs()
-//                }
-//            }
-//        }
+        always {
+            script {
+                node {
+                    cleanWs()
+                }
+            }
+        }
     }
 }
