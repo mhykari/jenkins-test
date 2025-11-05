@@ -5,8 +5,6 @@ pipeline {
         REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
         PROJECT_DIR = 'java-api'
         IMAGE_NAME = 'java-api'
-        CONTAINER_NAME = 'java-api-container'
-        COMPOSE_FILE = 'docker-compose.yml'
     }
 
     stages {
@@ -18,8 +16,13 @@ pipeline {
             }
         }
 
-        stage('Build with Maven (Agent: mvn)') {
-            agent { label 'mvn' }
+        stage('Build with Maven') {
+            agent {
+                docker {
+                    image '3.9.6-eclipse-temurin-21'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
             steps {
                 dir("${PROJECT_DIR}") {
                     echo "Building project with Maven..."
@@ -62,7 +65,11 @@ pipeline {
             echo 'Pipeline failed. Check logs for details.'
         }
         always {
-            cleanWs()
+            script {
+                node {
+                    cleanWs()
+                }
+            }
         }
     }
 }
