@@ -1,46 +1,62 @@
 pipeline {
-    agent any
+    agent none
 
     environment {
-        IMAGE_NAME = "jaava-api"
-        CONTAINER_NAME = "java-api-container"
+        REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
+        PROJECT_DIR = 'java-api'
+        IMAGE_NAME = 'java-api'
+        CONTAINER_NAME = 'java-api-container'
+        COMPOSE_FILE = 'docker-compose.yml'
     }
 
     stages {
         stage('Checkout Code') {
+            agent any
             steps {
-                git branch: 'main', url: 'https://github.com/mhykari/jenkins-test/'
+                echo "🔄 Cloning repository..."
+                git branch: 'main', url: "${REPO_URL}"
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build with Maven (Agent: mvn)') {
+            agent { label 'mvn' }
             steps {
-                sh "mvn clean package -DskipTests"
+                dir("${PROJECT_DIR}") {
+                    echo "⚙️ Building project with Maven..."
+                    sh 'mvn clean package -DskipTests'
+                }
+            }
+            post {
+                success {
+                    echo "✅ Maven build complete. Archiving artifact..."
+                    archiveArtifacts artifacts: "${PROJECT_DIR}/target/*.jar", fingerprint: true
+                }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Prepare Artifact (Controller)') {
+            agent { label 'master' }
             steps {
-                sh "docker build -t ${IMAGE_NAME} ."
+                echo "📦 Copying built JAR to controller workspace..."
+                dir("${PROJECT_DIR}/target") {
+                    // Extract artifact from Jenkins storage
+                    unstash name: 'workspace'
+                }
             }
         }
 
-        stage('Stop Previous Container') {
+        stage('Build Docker Image (Controller)') {
+            agent { label 'master' }
             steps {
-                sh """
-                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
-                    echo "Stopping old container..."
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-                fi
-                """
+                dir("${PROJECT_DIR}") {
+                    echo "🐳 Building Docker image on controller host..."
+                    sh "docker build -t ${IMAGE_NAME}:latest ."
+                }
             }
         }
 
-        stage('Run New Container') {
+        stage('Deploy with Docker Compose (Controller)') {
+            agent { label 'master' }
             steps {
-                sh "docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}"
-            }
-        }
-    }
-}
+                dir("${PROJECT_DIR}") {
+                    echo "🚀 Deploying applicati
