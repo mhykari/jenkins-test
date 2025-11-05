@@ -49,8 +49,8 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     echo "Deploying application using Docker Compose..."
                     sh """
-                        docker-compose down || true
-                        docker-compose up -d --build
+                        docker compose down || true
+                        docker compose up -d --build
                     """
                 }
             }
