@@ -64,12 +64,12 @@ pipeline {
         failure {
             echo 'Pipeline failed. Check logs for details.'
         }
-#        always {
-#            script {
-#                node {
-#                    cleanWs()
-#                }
-#            }
-#        }
+//        always {
+//            script {
+//                node {
+//                    cleanWs()
+//                }
+//            }
+//        }
     }
 }
