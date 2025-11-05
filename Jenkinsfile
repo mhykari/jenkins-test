@@ -4,7 +4,7 @@ pipeline {
     environment {
         REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
         PROJECT_DIR = 'java-api'
-        IMAGE_NAME = 'jaaaava-api'
+        IMAGE_NAME = 'java-api'
         CONTAINER_NAME = 'java-api-container'
         COMPOSE_FILE = 'docker-compose.yml'
     }
@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout Code') {
             agent any
             steps {
-                echo "🔄 Cloning repository..."
+                echo "Cloning repository..."
                 git branch: 'main', url: "${REPO_URL}"
             }
         }
@@ -22,25 +22,9 @@ pipeline {
             agent { label 'mvn' }
             steps {
                 dir("${PROJECT_DIR}") {
-                    echo "⚙️ Building project with Maven..."
+                    echo "Building project with Maven..."
                     sh 'mvn clean package -DskipTests'
-                }
-            }
-            post {
-                success {
-                    echo "✅ Maven build complete. Archiving artifact..."
-                    archiveArtifacts artifacts: "${PROJECT_DIR}/target/*.jar", fingerprint: true
-                }
-            }
-        }
-
-        stage('Prepare Artifact (Controller)') {
-            agent { label 'master' }
-            steps {
-                echo "📦 Copying built JAR to controller workspace..."
-                dir("${PROJECT_DIR}/target") {
-                    // Extract artifact from Jenkins storage
-                    unstash name: 'workspace'
+                    stash includes: 'target/*.jar', name: 'jarFile'
                 }
             }
         }
@@ -49,7 +33,8 @@ pipeline {
             agent { label 'master' }
             steps {
                 dir("${PROJECT_DIR}") {
-                    echo "🐳 Building Docker image on controller host..."
+                    echo "Building Docker image on controller host..."
+                    unstash 'jarFile'
                     sh "docker build -t ${IMAGE_NAME}:latest ."
                 }
             }
@@ -59,4 +44,25 @@ pipeline {
             agent { label 'master' }
             steps {
                 dir("${PROJECT_DIR}") {
-                    echo "🚀 Deploying applicati
+                    echo "Deploying application using Docker Compose..."
+                    sh """
+                        docker compose down || true
+                        docker compose up -d --build
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment completed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
