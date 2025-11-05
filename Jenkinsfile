@@ -4,7 +4,7 @@ pipeline {
     environment {
         REPO_URL = 'https://github.com/mhykari/jenkins-test.git'
         PROJECT_DIR = 'java-api'
-        IMAGE_NAME = 'java-api'
+        IMAGE_NAME = 'jaaaava-api'
         CONTAINER_NAME = 'java-api-container'
         COMPOSE_FILE = 'docker-compose.yml'
     }
