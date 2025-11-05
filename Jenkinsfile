@@ -19,7 +19,7 @@ pipeline {
         stage('Build with Maven') {
             agent {
                 docker {
-                    image '3.9.6-eclipse-temurin-21'
+                    image 'maven:3.9.6-eclipse-temurin-21'
                     args '-v /root/.m2:/root/.m2'
                 }
             }
